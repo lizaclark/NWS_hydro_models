@@ -3,23 +3,51 @@
 #========================================================================
 #  Modified:
 #  Andy Newman, Sept 2013
-#  A. Wood, Dec 2015, updating for model that uses external PET & gfortran comp. 
+#  A. Wood, Dec 2015, updating for model that uses external PET & gfortran comp.
 #           Jan 2016, renamed some subroutines, replaced several for code
 #                     that now runs in distributed fashion
 #           Aug 2015, major overhaul of code, updated makefile
+#  Elizabeth Clark, Feb 2017, adding documentation and separating executable
+#                     from FC and FC77 definitions so that flags set
+#                     properly even if compiler path is needed. Moved compiler
+#                     type and executable to PART 0 so that user will be
+#                     more likely to set it
 #
 #========================================================================
 # PART 0: Define directory paths
 #========================================================================
 
 # Define core directory below which everything resides
-F_MASTER_DIR = /home/andywood/proj/overtheloop/models/code/NWS_hydro_models/Snow17SacUH/src_bin/
+F_MASTER_DIR = NWS_hydro_models/Snow17SacUH/src_bin/
 
 # Location of the compiled modules
 MOD_PATH = $(F_MASTER_DIR)/driver
 
 # Define the executable and path
 EXE = $(F_MASTER_DIR)/Snow17SacUH.exe
+
+# Define the Fortran Compiler type
+# This is used in if statements in this makefile to define flags that are
+# specific to each compiler.
+# DO NOT SPECIFY the full path to the executable here. You can do so below
+#FC  = pgf90
+#FC77 = pgf77
+#FC  = ifort
+#FC77 = ifort
+FC  = gfortran
+FC77 = gfortran
+
+# Define the Fortran Compiler executable
+# This is not used in the if statements in this makefile, but simply to do
+# the actual compilation.
+# MAKE SURE this is consistent with the compiler type defined above
+#FCEXE = /opt/pgi-15.7/linux86-64/15.7/bin/pgf90
+#FC77EXE = /opt/pgi-15.7/linux86-64/15.7/bin/pgf77
+#FCEXE  = ifort
+#FC77EXE = ifort
+FCEXE  = gfortran
+FC77EXE = gfortran
+
 
 #========================================================================
 # PART 1: Assemble all of the various sub-routines
@@ -40,7 +68,7 @@ calib_UTIL= \
 		read_namelist.f90 \
 		ascii_io.f90 \
 		day_of_year.f90 \
-		sfc_pressure.f90 
+		sfc_pressure.f90
 UTIL = $(patsubst %, $(share_dir)/%, $(calib_UTIL))
 
 # snow-19 code (fortran 90, different options)
@@ -64,35 +92,29 @@ snow19 = $(patsubst %, $(snow19_dir)/%, $(calib_snow19))
 calib_sac_77= \
 		sac1.f \
 		ex_sac1.f \
-		duamel.f 
+		duamel.f
 sac_77 = $(patsubst %, $(sac_dir)/%, $(calib_sac_77))
+
+
+# ... and stitch it all together...
+calib_pgf90 = $(UTIL)
+calib_pgf90_2 = $(snow19)
+calib_pgf77 = $(sac_77)
 
 #========================================================================
 # PART 2: Define the libraries, driver programs, and executables
 #========================================================================
 
-# Define the Fortran Compilers
-#FC  = /opt/pgi-15.7/linux86-64/15.7/bin/pgf90
-#FC77 = /opt/pgi-15.7/linux86-64/15.7/bin/pgf77
-
-#FC  = ifort
-#FC77 = ifort
-
-FC  = gfortran  # DO NOT USE GFORTRAN UNTIL BUG IS FOUND
-FC77 = gfortran
-
 # Define the libraries and path to include files
 ifeq "$(FC)" "pgf90"
  LOCL_PATH = /usr/local
-
- LIB = -L$(LOCL_PATH)/lib 
+ LIB = -L$(LOCL_PATH)/lib
  INC = -I ./
 endif
 
 ifeq "$(FC77)" "pgf77"
  LOCL_PATH = /usr/local
-
- LIB77 = -L$(LOCL_PATH)/lib 
+ LIB77 = -L$(LOCL_PATH)/lib
  INC77 = -I ./
 endif
 
@@ -107,67 +129,65 @@ DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(calib_DRIVER))
 
 # Define flags
 ifeq "$(FC)" "gfortran"
-  FLAGS_DEBUG = -static -Wall -g -ffixed-line-length-none
-  FLAGS77 = -O3 -fno-align-commons -ffixed-line-length-none
-  FLAGS = -O3 -fno-align-commons -ffixed-line-length-none
-  FLAGS2 = -O3 -fno-align-commons -ffixed-line-length-none
-#  FLAGS = -O3 -fdefault-real-8 -fno-align-commons -fixed-line-length-none
-#  FLAGS2 = -O3 -fdefault-real-8 -fno-align-commons -fixed-line-length-none
+  # do not use -fdefault-real-8 since this will change the outcomes
+  FLAGS_DEBUG = -static -Wall -g -ffree-line-length-none
+  FLAGS = -O3 -fno-align-commons -ffree-line-length-none
+  FLAGS2 = -O3 -fno-align-commons -ffree-line-length-none
 endif
 
 ifeq "$(FC)" "ifort"
+  # do not use -autodouble since this will change the outcomes
   FLAGS_PROF = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
-  FLAGS_DEBUG = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
-  FLAGS77 = -O3 -f77rtl 
   FLAGS = -O3 -warn all -check all
-  FLAGS2 = -O3 
+  FLAGS2 = -O3
 endif
 
 ifeq "$(FC)" "pgf90"
+  # do not use -r8 since this will change the outcomes
   FLAGS_PROF = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
-  FLAGS_DEBUG = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
-  # FLAGS = -Mfreeform -O3 -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
-  FLAGS = -O3 -r8 -Kieee
-  FLAGS2 = -O3 -r8
+  FLAGS = -O3 -Kieee
+  FLAGS2 = -O3
+endif
+
+ifeq "$(FC77)" "gfortran"
+  # do not use -fdefault-real-8 since this will change the outcomes
+  FLAGS77 = -O3 -fno-align-commons -ffree-line-length-none
+endif
+
+ifeq "$(FC77)" "ifort"
+  # do not use -autodouble since this will change the outcomes
+  FLAGS77 = -O3 -f77rtl
 endif
 
 ifeq "$(FC77)" "pgf77"
-  FLAGS77 = -O3 -r8
+  # do not use -r8 since this will change the outcomes
+  FLAGS77 = -O3
 endif
-ifeq "$(FC77)" "gfortran"
-  FLAGS77 = -O3 -fdefault-real-8 -fno-align-commons -ffree-line-length-none
-endif
-
-#FLAGS = -O3 -W -v
-
-#.SUFFIXES: .f .o .f90
 
 # -- Compile --
 
-all: compile_calib link clean 
-debug: compile_debug link 
+all: compile_calib link clean
+debug: compile_debug link
 
 check:
 	echo test
-	echo $(FC)
+	echo $(FCEXE)
 
 # compile calibration code
 compile_calib:
-	$(FC77) $(FLAGS77) -c $(sac_77) $(INC77)
-	$(FC) $(FLAGS2) -c $(snow19) $(INC)
-	$(FC) $(FLAGS) -c $(UTIL) $(DRIVER) \
-	$(INC)
+	$(FC77EXE) $(FLAGS77) -c $(calib_pgf77) $(INC77)
+	$(FCEXE) $(FLAGS2) -c $(calib_pgf90_2) $(INC)
+	$(FCEXE) $(FLAGS) -c $(calib_pgf90) $(DRIVER) $(INC)
 
 compile_debug:
-	$(FC77) $(FLAGS77) -g -fcheck=all -c $(sac_77) $(INC77)
-	$(FC) $(FLAGS2) -g -fcheck=all -c $(snow19) $(INC)
-	$(FC) $(FLAGS) -g -fcheck=all -c $(UTILS) $(DRIVER) \
-	$(INC)
+	$(FC77EXE) $(FLAGS77) -g -fcheck=all -c $(calib_pgf77) $(INC77)
+	$(FCEXE) $(FLAGS2) -g -fcheck=all -c $(calib_pgf90_2) $(INC)
+	$(FCEXE) $(FLAGS) -g -fcheck=all -c $(calib_pgf90) $(DRIVER) $(INC)
+
 
 # link routines
 link:
-#	$(FC) -fPIC -Bstatic_pgi -rpath,/usr/local/netcdf4-pgi/lib *.o -I./ $(LIBNETCDF) -o $(EXE)
-	$(FC) -fPIC -I./ $(LIB) -o $(EXE) *.o 
+	$(FC) -fPIC -I./ $(LIB) -o $(EXE) *.o
 
 # Remove object files
 clean:
