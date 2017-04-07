@@ -65,7 +65,7 @@ calib_UTIL= \
 		def_namelists.f90 \
 		interfaces.f90 \
 		read_namelist.f90 \
-		ascii_io.f90 \
+		bin_io.f90 \
 		day_of_year.f90 \
 		sfc_pressure.f90 
 UTIL = $(patsubst %, $(share_dir)/%, $(calib_UTIL))
