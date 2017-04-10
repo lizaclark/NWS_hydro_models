@@ -3,7 +3,7 @@
 #========================================================================
 #  Modified:
 #  Andy Newman, Sept 2013
-#  A. Wood, Dec 2015, updating for model that uses external PET & gfortran comp. 
+#  A. Wood, Dec 2015, updating for model that uses external PET & gfortran comp.
 #           Jan 2016, renamed some subroutines, replaced several for code
 #                     that now runs in distributed fashion
 #           Aug 2015, major overhaul of code, updated makefile
@@ -66,8 +66,9 @@ calib_UTIL= \
 		interfaces.f90 \
 		read_namelist.f90 \
 		bin_io.f90 \
+		ascii_io.f90
 		day_of_year.f90 \
-		sfc_pressure.f90 
+		sfc_pressure.f90
 UTIL = $(patsubst %, $(share_dir)/%, $(calib_UTIL))
 
 # snow-19 code (fortran 90, different options)
@@ -91,7 +92,7 @@ snow19 = $(patsubst %, $(snow19_dir)/%, $(calib_snow19))
 calib_sac_77= \
 		sac1.f \
 		ex_sac1.f \
-		duamel.f 
+		duamel.f
 sac_77 = $(patsubst %, $(sac_dir)/%, $(calib_sac_77))
 
 #========================================================================
@@ -101,13 +102,13 @@ sac_77 = $(patsubst %, $(sac_dir)/%, $(calib_sac_77))
 # Define the libraries and path to include files
 ifeq "$(FC)" "pgf90"
  LOCL_PATH = /usr/local
- LIB = -L$(LOCL_PATH)/lib 
+ LIB = -L$(LOCL_PATH)/lib
  INC = -I ./
 endif
 
 ifeq "$(FC77)" "pgf77"
  LOCL_PATH = /usr/local
- LIB77 = -L$(LOCL_PATH)/lib 
+ LIB77 = -L$(LOCL_PATH)/lib
  INC77 = -I ./
 endif
 
@@ -159,8 +160,8 @@ endif
 
 # -- Compile --
 
-all: compile_calib link clean 
-debug: compile_debug link 
+all: compile_calib link clean
+debug: compile_debug link
 
 check:
 	echo test
@@ -181,7 +182,7 @@ compile_debug:
 
 # link routines
 link:
-	$(FC) -fPIC -I./ $(LIB) -o $(EXE) *.o 
+	$(FC) -fPIC -I./ $(LIB) -o $(EXE) *.o
 
 # Remove object files
 clean:
